@@ -1,0 +1,35 @@
+
+name: Build MoneyMate Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Flutter ZIP
+        run: |
+          unzip -o "*.zip" -d project
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Locate Flutter project
+        run: |
+          find project -name pubspec.yaml
+
+      - name: Build APK
+        run: |
+          cd project
+          flutter pub get
+          flutter build apk --release

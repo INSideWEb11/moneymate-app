@@ -17,19 +17,54 @@ jobs:
 
       - name: Extract Flutter ZIP
         run: |
-          unzip -o "*.zip" -d project
+          python3 - <<'PY'
+          import zipfile
+          import glob
+          import os
+
+          files = glob.glob("*.zip")
+          if not files:
+              raise Exception("No ZIP file found in repository!")
+
+          zip_file = files[0]
+          print("Extracting:", zip_file)
+
+          with zipfile.ZipFile(zip_file, "r") as z:
+              z.extractall("project")
+
+          matches = []
+          for root, dirs, filenames in os.walk("project"):
+              if "pubspec.yaml" in filenames:
+                  matches.append(root)
+
+          if not matches:
+              raise Exception("pubspec.yaml not found inside ZIP!")
+
+          project_dir = matches[0]
+          print("Flutter project found:", project_dir)
+
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write("FLUTTER_PROJECT_DIR=" + os.path.abspath(project_dir) + "\n")
+          PY
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      - name: Locate Flutter project
+      - name: Install dependencies
         run: |
-          find project -name pubspec.yaml
+          cd "$FLUTTER_PROJECT_DIR"
+          flutter pub get
 
       - name: Build APK
         run: |
-          cd project
-          flutter pub get
+          cd "$FLUTTER_PROJECT_DIR"
           flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoneyMate-Android-APK
+          path: ${{ env.FLUTTER_PROJECT_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7

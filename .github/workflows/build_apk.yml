@@ -1,28 +1,40 @@
 
-      - name: Extract and inspect ZIP
-        run: |
-          python3 - <<'PY'
-          import zipfile, glob, os
+name: Build MoneyMate Android APK
 
-          zips = glob.glob("*.zip")
-          if not zips:
-              raise Exception("ZIP file missing!")
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
-          with zipfile.ZipFile(zips[0]) as z:
-              z.extractall("project")
-              print("\n--- ZIP CONTENTS (first 100 files) ---")
-              for name in z.namelist()[:100]:
-                  print(name)
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-          print("\n--- SEARCHING FOR FLUTTER PROJECT ---")
-          found = []
-          for root, dirs, files in os.walk("project"):
-              if "pubspec.yaml" in files:
-                  found.append(root)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-          if found:
-              print("Flutter project found:", found[0])
-          else:
-              print("WARNING: pubspec.yaml NOT FOUND")
-              print("This ZIP may not contain the Flutter source code.")
-          PY
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoneyMate-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 7
